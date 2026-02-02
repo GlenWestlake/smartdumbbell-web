@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartDumbbell Config</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0; padding: 0;
+      background: #111827; color: #e5e7eb;
+    }
+    header {
+      background: #1f2937; padding: 12px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #374151;
+      position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { margin: 0; font-size: 18px; }
+    header small { color: #9ca3af; }
+    .status-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 6px;
+    }
+    .status-dot.disconnected { background: #ef4444; }
+    .status-dot.connected { background: #10b981; }
+    main { padding: 16px; max-width: 980px; margin: 0 auto 40px auto; }
+
+    .connect-banner {
+      background: #1e3a5f; border: 1px solid #3b82f6;
+      border-radius: 12px; padding: 24px; text-align: center;
+      margin-bottom: 16px;
+    }
+    .connect-banner h2 { margin: 0 0 12px 0; }
+    .connect-banner p { margin: 0 0 16px 0; color: #9ca3af; }
+    .connect-banner button {
+      background: #3b82f6; color: white; border: none;
+      padding: 12px 24px; border-radius: 9999px; font-size: 16px;
+      cursor: pointer;
+    }
+    .connect-banner button:hover { background: #2563eb; }
+    .connect-banner button:disabled { background: #4b5563; cursor: not-allowed; }
+
+    .tabs { display: flex; gap: 8px; margin: 12px 0 16px 0; flex-wrap: wrap; }
+    .tabbtn {
+      border-radius: 9999px; border: 1px solid #374151;
+      padding: 6px 12px; font-size: 13px; cursor: pointer;
+      background: #111827; color: #e5e7eb;
+    }
+    .tabbtn.active { background: #2563eb; border-color: #2563eb; }
+
+    .card {
+      background: #111827; border-radius: 12px; padding: 16px;
+      margin-bottom: 16px; border: 1px solid #1f2937;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    .card h2 {
+      margin-top: 0; font-size: 16px;
+      border-bottom: 1px solid #1f2937;
+      padding-bottom: 6px; margin-bottom: 10px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .col { flex: 1 1 340px; min-width: 300px; }
+    .field { flex: 1 1 180px; min-width: 150px; margin-bottom: 8px; }
+    .field label { display: block; font-size: 12px; color: #9ca3af; margin-bottom: 2px; }
+    .field small { display: block; font-size: 11px; color: #6b7280; margin-top: 1px; }
+    input[type="number"], input[type="text"], select {
+      width: 100%; padding: 6px 8px; border-radius: 6px;
+      border: 1px solid #374151; background: #020617;
+      color: #e5e7eb; font-size: 13px;
+    }
+    input[type="checkbox"] { transform: scale(1.1); margin-right: 4px; }
+    .checkbox-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    button {
+      border-radius: 9999px; border: none; padding: 6px 12px;
+      font-size: 13px; cursor: pointer; background: #2563eb; color: #e5e7eb;
+    }
+    button.secondary { background: #374151; }
+    button.danger { background: #dc2626; }
+    button:disabled { background: #4b5563; cursor: not-allowed; }
+
+    #statusMsg { margin-top: 8px; font-size: 12px; color: #9ca3af; }
+    #statusMsg.ok { color: #10b981; }
+    #statusMsg.err { color: #f97316; }
+
+    .live-stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px; margin-bottom: 16px;
+    }
+    .stat-box {
+      background: #1f2937; border-radius: 8px; padding: 12px;
+      text-align: center;
+    }
+    .stat-box .value { font-size: 24px; font-weight: bold; color: #10b981; }
+    .stat-box .label { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    .muted { color: #9ca3af; font-size: 12px; }
+
+    .ex-row {
+      display: flex; align-items: center; gap: 8px; padding: 8px;
+      border-bottom: 1px solid #1f2937;
+    }
+    .ex-row .ex-name { flex: 1; }
+    .ex-row input[type="text"] { width: 120px; flex: 0 0 auto; }
+    .toggle-btn {
+      padding: 4px 10px; font-size: 12px; border-radius: 9999px;
+      cursor: pointer; border: none;
+    }
+    .toggle-btn.enabled { background: #10b981; color: white; }
+    .toggle-btn.disabled { background: #4b5563; color: #9ca3af; }
+
+    @media (max-width: 600px) {
+      .card { padding: 12px; }
+      .col { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>SmartDumbbell</h1>
+    <small>Web Bluetooth Configuration</small>
+  </div>
+  <div id="connectionStatus">
+    <span class="status-dot disconnected" id="statusDot"></span>
+    <span id="statusText">Disconnected</span>
+  </div>
+</header>
+
+<main>
+  <!-- Connect Banner -->
+  <div class="connect-banner" id="connectBanner">
+    <h2>Connect to SmartDumbbell</h2>
+    <p>Make sure Bluetooth is enabled and the device is powered on.</p>
+    <button id="btnConnect">Connect via Bluetooth</button>
+    <p style="margin-top:12px;font-size:11px;color:#6b7280;">
+      Requires Chrome or Edge. Must be served via HTTPS or localhost.<br>
+      Run: <code>python3 -m http.server 8000</code> then open <a href="http://localhost:8000/smartdumbbell.html" style="color:#60a5fa;">localhost:8000/smartdumbbell.html</a>
+    </p>
+  </div>
+
+  <!-- Main UI (hidden until connected) -->
+  <div id="mainUI" style="display:none;">
+
+    <!-- Live Stats -->
+    <div class="live-stats">
+      <div class="stat-box">
+        <div class="value" id="statReps">0</div>
+        <div class="label">Reps</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="statExercise">-</div>
+        <div class="label" id="statExerciseLabel">Exercise</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="statLastRom">-</div>
+        <div class="label" id="statRomLabel">ROM</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="statSmooth">-</div>
+        <div class="label">Smooth</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="statForm">-</div>
+        <div class="label" id="statFormLabel">Form</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="statRpm">-</div>
+        <div class="label">RPM</div>
+      </div>
+      <div class="stat-box">
+        <div class="value" id="statCalibrated">No</div>
+        <div class="label">Calibrated</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tabbtn active" data-tab="tabWorkout">Workout</button>
+      <button class="tabbtn" data-tab="tabExercises">Exercises</button>
+      <button class="tabbtn" data-tab="tabExpert">Expert</button>
+      <button class="tabbtn" data-tab="tabSerial">Serial</button>
+    </div>
+
+    <!-- WORKOUT TAB (simplified) -->
+    <div id="tabWorkout" class="tab active">
+      <div class="card">
+        <h2>Profile</h2>
+        <div class="row">
+          <div class="field">
+            <label for="exercise">Exercise</label>
+            <select id="exercise">
+              <!-- Populated dynamically from device exercise list -->
+            </select>
+          </div>
+          <div class="field">
+            <label for="side">Side</label>
+            <select id="side">
+              <option value="0">Right</option>
+              <option value="1">Left</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="repMode">Rep Mode</label>
+            <select id="repMode">
+              <option value="0">Angle (Tilt)</option>
+              <option value="1">Velocity</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="weightKg">Weight (kg)</label>
+            <input type="number" step="0.1" id="weightKg" />
+          </div>
+        </div>
+        <div class="button-row" style="margin-top:8px;">
+          <button id="btnWriteConfig">Save Profile</button>
+          <button id="btnReadConfig" class="secondary">Reload</button>
+        </div>
+      </div>
+
+      <!-- Calibration -->
+      <div class="card" style="border-color:#3b82f6;">
+        <h2>Calibration</h2>
+        <p class="muted" style="margin-top:0;">
+          Perform 5-6 reps of the selected exercise. Calibration auto-derives all
+          detection parameters: angle thresholds, timing windows, motion axis,
+          turnaround velocity, and quality baseline.
+        </p>
+        <div class="button-row">
+          <button id="btnCalibrate" style="font-size:15px;padding:10px 20px;">Start Calibration</button>
+          <button id="btnResetSet" class="secondary">Reset Set</button>
+          <button id="btnNextEx" class="secondary">Next Exercise</button>
+          <button id="btnToggleSide" class="secondary">Toggle Side</button>
+        </div>
+        <div id="calibStatus" class="muted" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Last Rep Card -->
+      <div class="card" id="lastRepCard" style="display:none; border-color:#10b981;">
+        <h2>Last Rep</h2>
+        <div class="row">
+          <div class="field"><label>ROM</label><div id="lrRom" style="font-size:18px;font-weight:bold;color:#10b981;">-</div></div>
+          <div class="field"><label>LDLJ</label><div id="lrLdlj" style="font-size:18px;font-weight:bold;color:#10b981;">-</div></div>
+          <div class="field"><label>Tempo</label><div id="lrTempo" style="font-size:18px;font-weight:bold;color:#10b981;">-</div></div>
+          <div class="field"><label>Quality</label><div id="lrQuality" style="font-size:18px;font-weight:bold;color:#10b981;">-</div></div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <div class="field"><label>Form Score</label><div id="lrFormScore" style="font-size:18px;font-weight:bold;color:#10b981;">-</div></div>
+          <div class="field"><label>Defects</label><div id="lrDefects" class="muted">-</div></div>
+          <div class="field"><label>Off-Axis</label><div id="lrOffAxis" class="muted">-</div></div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <div class="field"><label>Up</label><div id="lrUp" class="muted">-</div></div>
+          <div class="field"><label>Down</label><div id="lrDown" class="muted">-</div></div>
+          <div class="field"><label>Total</label><div id="lrTotal" class="muted">-</div></div>
+          <div class="field"><label>Peak Vel</label><div id="lrPeakVel" class="muted">-</div></div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="card">
+        <div class="button-row">
+          <button id="btnResetProfile" class="danger">Reset Profile to Defaults</button>
+          <button id="btnDisconnect" class="danger">Disconnect</button>
+        </div>
+      </div>
+      <div id="statusMsg"></div>
+    </div>
+
+    <!-- EXERCISES TAB -->
+    <div id="tabExercises" class="tab">
+      <div class="card">
+        <h2>Exercise Management</h2>
+        <p class="muted" style="margin-top:0;">Enable, disable, rename, or remove exercises. Changes take effect immediately on the device.</p>
+        <div id="exerciseList">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Add New Exercise</h2>
+        <div class="row">
+          <div class="field">
+            <label for="addExPreset">Preset</label>
+            <select id="addExPreset">
+              <option value="">-- Custom --</option>
+              <option value="Hammer Curl">Hammer Curl</option>
+              <option value="Conc. Curl">Concentration Curl</option>
+              <option value="Fly">Fly</option>
+              <option value="Reverse Fly">Reverse Fly</option>
+              <option value="Wrist Curl">Wrist Curl</option>
+              <option value="Shrug">Shrug</option>
+              <option value="Upright Row">Upright Row</option>
+              <option value="Arnold Press">Arnold Press</option>
+              <option value="Skull Crusher">Skull Crusher</option>
+              <option value="Kickback">Kickback</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="addExName">Name</label>
+            <input type="text" id="addExName" maxlength="15" placeholder="Exercise name" />
+          </div>
+          <div class="field">
+            <label for="addExRepMode">Rep Mode</label>
+            <select id="addExRepMode">
+              <option value="0">Angle</option>
+              <option value="1">Velocity</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="addExAxisX">Ref Axis X</label>
+            <input type="number" step="0.1" id="addExAxisX" value="0" />
+          </div>
+          <div class="field">
+            <label for="addExAxisY">Ref Axis Y</label>
+            <input type="number" step="0.1" id="addExAxisY" value="0" />
+          </div>
+          <div class="field">
+            <label for="addExAxisZ">Ref Axis Z</label>
+            <input type="number" step="0.1" id="addExAxisZ" value="0" />
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="btnAddExercise">Add to Device</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPERT TAB (all parameters, for manual override) -->
+    <div id="tabExpert" class="tab">
+      <p class="muted">These parameters are auto-derived by calibration. Edit only if you need manual overrides.</p>
+
+      <div class="row">
+        <div class="col">
+          <div class="card">
+            <h2>Angle Rep Detection</h2>
+            <div class="row">
+              <div class="field">
+                <label for="topAngleDeg">Top Angle (deg)</label>
+                <input type="number" step="0.1" id="topAngleDeg" />
+                <small>Auto-set by calibration</small>
+              </div>
+              <div class="field">
+                <label for="bottomAngleDeg">Bottom Angle (deg)</label>
+                <input type="number" step="0.1" id="bottomAngleDeg" />
+                <small>Auto-set by calibration</small>
+              </div>
+              <div class="field">
+                <label for="turnaroundVelDps">Turnaround Vel (deg/s)</label>
+                <input type="number" step="0.1" id="turnaroundVelDps" />
+                <small>Auto: 15% of peak vel</small>
+              </div>
+              <div class="field">
+                <label for="angleMinRepTimeMs">Min Rep Time (ms)</label>
+                <input type="number" id="angleMinRepTimeMs" />
+                <small>Auto: 40% of fastest rep</small>
+              </div>
+              <div class="field">
+                <label for="angleMaxRepTimeMs">Max Rep Time (ms)</label>
+                <input type="number" id="angleMaxRepTimeMs" />
+                <small>Auto: 250% of slowest rep</small>
+              </div>
+              <div class="field">
+                <label for="topHoldMinMs">Top Hold Min (ms)</label>
+                <input type="number" id="topHoldMinMs" />
+                <small>Auto: 50% of min hold</small>
+              </div>
+              <div class="field">
+                <label for="bottomHoldMinMs">Bottom Hold Min (ms)</label>
+                <input type="number" id="bottomHoldMinMs" />
+                <small>Auto: 50% of min hold</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="card">
+            <h2>Velocity Rep Detection</h2>
+            <div class="row">
+              <div class="field">
+                <label for="minROM_Amplitude">A_ref (peak vel)</label>
+                <input type="number" step="0.01" id="minROM_Amplitude" />
+                <small>Auto-set by calibration</small>
+              </div>
+              <div class="field">
+                <label for="vertMinRepTimeMs">Min Rep Time (ms)</label>
+                <input type="number" id="vertMinRepTimeMs" />
+                <small>Auto: 40% of fastest rep</small>
+              </div>
+              <div class="field">
+                <label for="vertMaxRepTimeMs">Max Rep Time (ms)</label>
+                <input type="number" id="vertMaxRepTimeMs" />
+                <small>Auto: 250% of slowest rep</small>
+              </div>
+              <div class="field">
+                <label for="vertTopHoldMinMs">Top Hold Min (ms)</label>
+                <input type="number" id="vertTopHoldMinMs" />
+              </div>
+              <div class="field">
+                <label for="vertBottomHoldMinMs">Bottom Hold Min (ms)</label>
+                <input type="number" id="vertBottomHoldMinMs" />
+              </div>
+              <div class="field">
+                <label for="velStartThreshFrac">Start Thresh (frac)</label>
+                <input type="number" step="0.01" id="velStartThreshFrac" />
+              </div>
+              <div class="field">
+                <label for="velKeepThreshFrac">Keep Thresh (frac)</label>
+                <input type="number" step="0.01" id="velKeepThreshFrac" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Angle Source</h2>
+        <div class="row">
+          <div class="field">
+            <label for="angleMode">Angle Mode</label>
+            <select id="angleMode">
+              <option value="0">Tilt vs gravity</option>
+              <option value="1">Pitch (Euler)</option>
+              <option value="2">Roll (Euler)</option>
+              <option value="3">Yaw (Euler)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="refAxisX">Ref Axis X</label>
+            <input type="number" step="0.01" id="refAxisX" />
+            <small>Auto-detected by calibration</small>
+          </div>
+          <div class="field">
+            <label for="refAxisY">Ref Axis Y</label>
+            <input type="number" step="0.01" id="refAxisY" />
+          </div>
+          <div class="field">
+            <label for="refAxisZ">Ref Axis Z</label>
+            <input type="number" step="0.01" id="refAxisZ" />
+          </div>
+          <div class="field">
+            <label for="angleInvert">Invert</label>
+            <div class="checkbox-row">
+              <input type="checkbox" id="angleInvert" />
+              <span>Flip sign</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Filters</h2>
+        <div class="row">
+          <div class="field">
+            <label for="angleSmoothMs">Angle Smooth (ms)</label>
+            <input type="number" id="angleSmoothMs" />
+          </div>
+          <div class="field">
+            <label for="velSmoothMs">Vel Smooth (ms)</label>
+            <input type="number" id="velSmoothMs" />
+          </div>
+          <div class="field">
+            <label for="accelSmoothMs">Accel Smooth (ms)</label>
+            <input type="number" id="accelSmoothMs" />
+          </div>
+          <div class="field">
+            <label for="tapThresholdG">Tap Thresh (g)</label>
+            <input type="number" step="0.01" id="tapThresholdG" />
+          </div>
+          <div class="field">
+            <label for="tapMinDurationMs">Tap Min (ms)</label>
+            <input type="number" id="tapMinDurationMs" />
+          </div>
+          <div class="field">
+            <label for="gravitySmoothMs">Gravity Smooth (ms)</label>
+            <input type="number" id="gravitySmoothMs" />
+          </div>
+          <div class="field">
+            <label for="gravityFreezeOmegaDps">Freeze |w| (deg/s)</label>
+            <input type="number" step="0.1" id="gravityFreezeOmegaDps" />
+            <small>Auto: 120% of peak omega</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Calibration Baseline</h2>
+        <p class="muted" style="margin-top:0;">Derived from calibration reps. Shows the reference values used for quality scoring.</p>
+        <div class="row">
+          <div class="field">
+            <label for="calibValid">Calibrated</label>
+            <select id="calibValid">
+              <option value="0">No</option>
+              <option value="1">Yes</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="calibBaseROM">Base ROM</label>
+            <input type="number" step="0.001" id="calibBaseROM" />
+            <small>Median ROM from calib reps</small>
+          </div>
+          <div class="field">
+            <label for="calibBaseUpMs">Base Up (ms)</label>
+            <input type="number" step="0.1" id="calibBaseUpMs" />
+          </div>
+          <div class="field">
+            <label for="calibBaseDownMs">Base Down (ms)</label>
+            <input type="number" step="0.1" id="calibBaseDownMs" />
+          </div>
+          <div class="field">
+            <label for="calibBaseTotalMs">Base Total (ms)</label>
+            <input type="number" step="0.1" id="calibBaseTotalMs" />
+          </div>
+          <div class="field">
+            <label for="calibRepsUsed">Reps Used</label>
+            <input type="number" id="calibRepsUsed" />
+          </div>
+          <div class="field">
+            <label for="calibBaseLDLJ">Base LDLJ</label>
+            <input type="number" step="0.01" id="calibBaseLDLJ" />
+            <small>Median LDLJ from calib reps (negative)</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Quality & Calibration Settings</h2>
+        <div class="row">
+          <div class="field">
+            <label for="minCalibReps">Min Calib Reps</label>
+            <input type="number" id="minCalibReps" />
+          </div>
+          <div class="field">
+            <label for="calibInitialIgnoreMs">Initial Ignore (ms)</label>
+            <input type="number" id="calibInitialIgnoreMs" />
+            <small>Ignore period before collecting</small>
+          </div>
+          <div class="field">
+            <label for="calibCaptureDurationMs">Capture Duration (ms)</label>
+            <input type="number" id="calibCaptureDurationMs" />
+            <small>Max collection window</small>
+          </div>
+          <div class="field">
+            <label for="romLowerPct">ROM Lower %</label>
+            <input type="number" step="0.01" id="romLowerPct" />
+            <small>Lower ROM zone (e.g. 0.15)</small>
+          </div>
+          <div class="field">
+            <label for="romUpperPct">ROM Upper %</label>
+            <input type="number" step="0.01" id="romUpperPct" />
+            <small>Upper ROM zone (e.g. 0.85)</small>
+          </div>
+          <div class="field">
+            <label for="minRomFraction">Min ROM Fraction</label>
+            <input type="number" step="0.01" id="minRomFraction" />
+          </div>
+          <div class="field">
+            <label for="romRatioCap">ROM Ratio Cap</label>
+            <input type="number" step="0.01" id="romRatioCap" />
+          </div>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="btnWriteConfigExpert">Save Expert Config</button>
+        <button id="btnReadConfigExpert" class="secondary">Reload</button>
+      </div>
+    </div>
+
+    <!-- SERIAL TAB -->
+    <div id="tabSerial" class="tab">
+      <div class="card">
+        <h2>Serial Streaming (per profile)</h2>
+        <div class="row">
+          <div class="field">
+            <label>Debug Streams</label>
+            <div class="checkbox-row"><input type="checkbox" id="streamRaw" /><span>Raw samples</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="streamFiltered" /><span>Filtered</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="streamFSM" /><span>FSM</span></div>
+            <div class="checkbox-row"><input type="checkbox" id="streamSummary" /><span>Rep summary</span></div>
+          </div>
+        </div>
+        <p class="muted">These flags control serial output and are saved with the profile.</p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// =============================================================================
+// Web Bluetooth for SmartDumbbell
+// =============================================================================
+
+const SERVICE_UUID        = '12345678-1234-5678-1234-56789abc0001';
+const CONFIG_CHAR_UUID    = '12345678-1234-5678-1234-56789abc0002';
+const STATUS_CHAR_UUID    = '12345678-1234-5678-1234-56789abc0003';
+const REP_DATA_CHAR_UUID  = '12345678-1234-5678-1234-56789abc0004';
+const COMMAND_CHAR_UUID   = '12345678-1234-5678-1234-56789abc0005';
+const PROFILE_SEL_UUID    = '12345678-1234-5678-1234-56789abc0006';
+const FORM_DATA_CHAR_UUID = '12345678-1234-5678-1234-56789abc0007';
+const EXERCISE_MGMT_UUID  = '12345678-1234-5678-1234-56789abc0008';
+
+// Commands
+const CMD_CALIBRATE_START = 0x01;
+const CMD_CALIBRATE_ABORT = 0x02;
+const CMD_RESET_SET       = 0x03;
+const CMD_NEXT_EXERCISE   = 0x04;
+const CMD_PREV_EXERCISE   = 0x05;
+const CMD_TOGGLE_SIDE     = 0x06;
+const CMD_RESET_PROFILE   = 0x10;
+const CMD_SAVE_CONFIG     = 0x20;
+const CMD_RELOAD_CONFIG   = 0x21;
+
+// Exercise management commands
+const EX_CMD_ADD     = 0x30;
+const EX_CMD_REMOVE  = 0x31;
+const EX_CMD_RENAME  = 0x32;
+const EX_CMD_ENABLE  = 0x33;
+const EX_CMD_DISABLE = 0x34;
+
+let device = null;
+let server = null;
+let configChar = null;
+let statusChar = null;
+let repDataChar = null;
+let formDataChar = null;
+let commandChar = null;
+let profileSelChar = null;
+let exMgmtChar = null;
+
+// Dynamic exercise list from device
+let deviceExercises = [];  // [{slot, name, repMode, enabled}]
+
+// Config struct size
+const CONFIG_STRUCT_SIZE = 164;
+
+// Tracked state for top stats
+let lastBaseROM = 0;
+let lastBaseLDLJ = 0;
+let lastRepLDLJ = 0;
+let lastFormScore = 0;
+let lastDefectMask = 0;
+let lastRpm = 0;
+
+// Get exercise name from slot (using device list)
+function exerciseNameFromSlot(slot) {
+  const ex = deviceExercises.find(e => e.slot === slot);
+  return ex ? ex.name : `Ex#${slot}`;
+}
+
+// Update exercise dropdown from device exercise list
+function updateExerciseUI() {
+  const sel = document.getElementById('exercise');
+  const currentVal = sel.value;
+  sel.innerHTML = '';
+  deviceExercises.filter(e => e.enabled).forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.slot;
+    opt.textContent = e.name;
+    sel.appendChild(opt);
+  });
+  // Try to restore previous selection
+  if (sel.querySelector(`option[value="${currentVal}"]`)) {
+    sel.value = currentVal;
+  }
+}
+
+// Build exercise management tab list
+function updateExerciseListUI() {
+  const container = document.getElementById('exerciseList');
+  container.innerHTML = '';
+
+  deviceExercises.forEach(ex => {
+    const row = document.createElement('div');
+    row.className = 'ex-row';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = ex.name;
+    nameInput.maxLength = 15;
+    nameInput.style.width = '130px';
+    nameInput.addEventListener('change', () => {
+      renameExercise(ex.slot, nameInput.value);
+    });
+
+    const slotLabel = document.createElement('span');
+    slotLabel.className = 'muted';
+    slotLabel.textContent = `#${ex.slot}`;
+    slotLabel.style.width = '30px';
+
+    const modeLabel = document.createElement('span');
+    modeLabel.className = 'muted';
+    modeLabel.textContent = ex.repMode === 1 ? 'Vel' : 'Ang';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = `toggle-btn ${ex.enabled ? 'enabled' : 'disabled'}`;
+    toggleBtn.textContent = ex.enabled ? 'Enabled' : 'Disabled';
+    toggleBtn.addEventListener('click', () => {
+      toggleExercise(ex.slot, !ex.enabled);
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'danger';
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.fontSize = '11px';
+    removeBtn.style.padding = '3px 8px';
+    removeBtn.addEventListener('click', () => {
+      if (confirm(`Remove "${ex.name}" from device? This deletes all calibration data for this exercise.`)) {
+        removeExercise(ex.slot);
+      }
+    });
+
+    row.appendChild(slotLabel);
+    row.appendChild(nameInput);
+    row.appendChild(modeLabel);
+    row.appendChild(toggleBtn);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+  });
+}
+
+// Read exercise list from device
+async function readExerciseList() {
+  if (!exMgmtChar) return;
+  try {
+    const value = await exMgmtChar.readValue();
+    const data = new DataView(value.buffer);
+    const count = data.getUint8(0);
+    const enableMask = data.getUint16(1, true);
+
+    deviceExercises = [];
+    let offset = 3;
+    for (let i = 0; i < count; i++) {
+      if (offset + 18 > data.byteLength) break;
+      const slot = data.getUint8(offset);
+      const repMode = data.getUint8(offset + 1);
+      let name = '';
+      for (let j = 0; j < 16; j++) {
+        const c = data.getUint8(offset + 2 + j);
+        if (c === 0) break;
+        name += String.fromCharCode(c);
+      }
+      const enabled = (enableMask & (1 << slot)) !== 0;
+      deviceExercises.push({ slot, name, repMode, enabled });
+      offset += 18;
+    }
+
+    console.log('[BLE] Exercise list:', deviceExercises);
+    updateExerciseUI();
+    updateExerciseListUI();
+  } catch (error) {
+    console.error('Read exercise list error:', error);
+  }
+}
+
+// BLE write functions for exercise management
+async function addExercise(name, repMode, axisX, axisY, axisZ) {
+  if (!exMgmtChar) return;
+  try {
+    const nameBytes = new TextEncoder().encode(name.substring(0, 15));
+    // Payload: [cmd, repMode, angleMode(0), refX(f32), refY(f32), refZ(f32), invert(0), name...]
+    const buf = new ArrayBuffer(16 + nameBytes.length);
+    const d = new DataView(buf);
+    d.setUint8(0, EX_CMD_ADD);
+    d.setUint8(1, repMode);
+    d.setUint8(2, 0); // angleMode = tilt
+    d.setFloat32(3, axisX, true);
+    d.setFloat32(7, axisY, true);
+    d.setFloat32(11, axisZ, true);
+    d.setUint8(15, 0); // invert = false
+    const arr = new Uint8Array(buf);
+    const combined = new Uint8Array(16 + nameBytes.length);
+    combined.set(arr);
+    combined.set(nameBytes, 16);
+    await exMgmtChar.writeValueWithResponse(combined);
+    await readExerciseList();
+    setStatus('Exercise added!', 'ok');
+  } catch (error) {
+    console.error('Add exercise error:', error);
+    setStatus('Add failed: ' + error.message, 'err');
+  }
+}
+
+async function removeExercise(slot) {
+  if (!exMgmtChar) return;
+  try {
+    const buf = new Uint8Array([EX_CMD_REMOVE, slot]);
+    await exMgmtChar.writeValueWithResponse(buf);
+    await readExerciseList();
+    setStatus('Exercise removed', 'ok');
+  } catch (error) {
+    console.error('Remove exercise error:', error);
+    setStatus('Remove failed: ' + error.message, 'err');
+  }
+}
+
+async function renameExercise(slot, newName) {
+  if (!exMgmtChar) return;
+  try {
+    const nameBytes = new TextEncoder().encode(newName.substring(0, 15));
+    const buf = new Uint8Array(2 + nameBytes.length);
+    buf[0] = EX_CMD_RENAME;
+    buf[1] = slot;
+    buf.set(nameBytes, 2);
+    await exMgmtChar.writeValueWithResponse(buf);
+    await readExerciseList();
+    setStatus('Exercise renamed', 'ok');
+  } catch (error) {
+    console.error('Rename exercise error:', error);
+    setStatus('Rename failed: ' + error.message, 'err');
+  }
+}
+
+async function toggleExercise(slot, enable) {
+  if (!exMgmtChar) return;
+  try {
+    const cmd = enable ? EX_CMD_ENABLE : EX_CMD_DISABLE;
+    const buf = new Uint8Array([cmd, slot]);
+    await exMgmtChar.writeValueWithResponse(buf);
+    await readExerciseList();
+    setStatus(enable ? 'Exercise enabled' : 'Exercise disabled', 'ok');
+  } catch (error) {
+    console.error('Toggle exercise error:', error);
+    setStatus('Toggle failed: ' + error.message, 'err');
+  }
+}
+
+// -----------------------------------------------------------------------------
+// UI Helpers
+// -----------------------------------------------------------------------------
+function setStatus(msg, cls) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+function setConnected(connected) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  const banner = document.getElementById('connectBanner');
+  const mainUI = document.getElementById('mainUI');
+
+  if (connected) {
+    dot.className = 'status-dot connected';
+    text.textContent = 'Connected';
+    banner.style.display = 'none';
+    mainUI.style.display = 'block';
+  } else {
+    dot.className = 'status-dot disconnected';
+    text.textContent = 'Disconnected';
+    banner.style.display = 'block';
+    mainUI.style.display = 'none';
+  }
+}
+
+function updateLiveStats(status) {
+  document.getElementById('statReps').textContent = status.repCount || 0;
+  document.getElementById('statExercise').textContent = exerciseNameFromSlot(status.exercise);
+  document.getElementById('statExerciseLabel').textContent = status.side === 0 ? 'Right' : 'Left';
+
+  const romEl = document.getElementById('statLastRom');
+  const romLabel = document.getElementById('statRomLabel');
+  if (status.lastRom && lastBaseROM > 0.001) {
+    const pct = (status.lastRom / lastBaseROM) * 100;
+    romEl.textContent = pct.toFixed(0) + '%';
+    romLabel.textContent = 'ROM %';
+  } else if (status.lastRom) {
+    romEl.textContent = status.lastRom.toFixed(1);
+    romLabel.textContent = 'ROM';
+  } else {
+    romEl.textContent = '-';
+    romLabel.textContent = 'ROM';
+  }
+
+  const smoothEl = document.getElementById('statSmooth');
+  if (lastRepLDLJ < -0.01 && lastBaseLDLJ < -0.01) {
+    const smoothPct = Math.round((lastRepLDLJ / lastBaseLDLJ) * 100);
+    const clamped = Math.max(0, Math.min(200, smoothPct));
+    smoothEl.textContent = clamped + '%';
+    smoothEl.style.color = clamped >= 80 ? '#10b981' :
+                           clamped >= 60 ? '#f59e0b' : '#ef4444';
+  } else {
+    smoothEl.textContent = '-';
+    smoothEl.style.color = '#10b981';
+  }
+
+  const formEl = document.getElementById('statForm');
+  const formLabel = document.getElementById('statFormLabel');
+  if (lastFormScore > 0) {
+    formEl.textContent = lastFormScore;
+    formEl.style.color = lastFormScore >= 80 ? '#10b981' :
+                         lastFormScore >= 60 ? '#f59e0b' : '#ef4444';
+    formLabel.textContent = lastDefectMask ? defectList(lastDefectMask) : 'Good';
+  } else {
+    formEl.textContent = '-';
+    formEl.style.color = '#10b981';
+    formLabel.textContent = 'Form';
+  }
+
+  document.getElementById('statRpm').textContent = lastRpm > 0 ? lastRpm.toFixed(1) : '-';
+  document.getElementById('statCalibrated').textContent = status.calibrated ? 'Yes' : 'No';
+
+  // Update selectors to match device state
+  const exSel = document.getElementById('exercise');
+  if (exSel.querySelector(`option[value="${status.exercise}"]`)) {
+    exSel.value = status.exercise;
+  }
+  document.getElementById('side').value = status.side;
+
+  // Calibration status feedback
+  const calibEl = document.getElementById('calibStatus');
+  const calibBtn = document.getElementById('btnCalibrate');
+  const calState = status.calibState || 0;
+
+  if (calState === 1) {
+    calibEl.textContent = 'Hold still... gravity settling';
+    calibEl.style.color = '#f59e0b';
+    calibBtn.textContent = 'Abort Calibration';
+    calibBtn.dataset.calibActive = '1';
+  } else if (calState === 2) {
+    calibEl.textContent = 'Analyzing motion... do reps now!';
+    calibEl.style.color = '#a855f7';
+    calibBtn.textContent = 'Abort Calibration';
+    calibBtn.dataset.calibActive = '1';
+  } else if (calState === 3) {
+    const got = status.calibRepCount || 0;
+    const need = status.calibMinReps || 6;
+    calibEl.textContent = `Phase 1: ${got}/${need} reps - bootstrapping params...`;
+    calibEl.style.color = '#3b82f6';
+    calibBtn.textContent = 'Abort Calibration';
+    calibBtn.dataset.calibActive = '1';
+  } else if (calState === 4) {
+    const got = status.calibRepCount || 0;
+    const need = status.calibMinReps || 6;
+    calibEl.textContent = `Phase 2: ${got}/${need} reps - collecting clean data...`;
+    calibEl.style.color = '#3b82f6';
+    calibBtn.textContent = 'Abort Calibration';
+    calibBtn.dataset.calibActive = '1';
+  } else if (calState === 5) {
+    if (calibBtn.dataset.calibActive === '1') {
+      setTimeout(readConfig, 300);
+    }
+    calibEl.textContent = 'Calibration complete! Parameters derived. Config reloaded.';
+    calibEl.style.color = '#10b981';
+    calibBtn.textContent = 'Start Calibration';
+    calibBtn.dataset.calibActive = '0';
+  } else if (calState === 6) {
+    const got = status.calibRepCount || 0;
+    const need = status.calibMinReps || 6;
+    calibEl.textContent = `Calibration aborted: only ${got}/${need} reps detected. Try again with more deliberate movements.`;
+    calibEl.style.color = '#ef4444';
+    calibBtn.textContent = 'Start Calibration';
+    calibBtn.dataset.calibActive = '0';
+  } else {
+    if (calibEl.textContent && !calibEl.textContent.startsWith('Calibration complete') &&
+        !calibEl.textContent.startsWith('Calibration aborted')) {
+      calibEl.textContent = '';
+    }
+    calibBtn.textContent = 'Start Calibration';
+    calibBtn.dataset.calibActive = '0';
+  }
+}
+
+// -----------------------------------------------------------------------------
+// BLE Connection
+// -----------------------------------------------------------------------------
+async function connect() {
+  try {
+    setStatus('Requesting device...', '');
+
+    let requestOptions = {
+      filters: [
+        { name: 'SmartDumbbell' },
+        { namePrefix: 'Smart' }
+      ],
+      optionalServices: [SERVICE_UUID]
+    };
+
+    try {
+      device = await navigator.bluetooth.requestDevice(requestOptions);
+    } catch (filterError) {
+      device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [SERVICE_UUID]
+      });
+    }
+
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+
+    setStatus('Connecting to GATT server...', '');
+    server = await device.gatt.connect();
+
+    setStatus('Getting service...', '');
+    const service = await server.getPrimaryService(SERVICE_UUID);
+
+    setStatus('Getting characteristics...', '');
+    configChar = await service.getCharacteristic(CONFIG_CHAR_UUID);
+    statusChar = await service.getCharacteristic(STATUS_CHAR_UUID);
+    repDataChar = await service.getCharacteristic(REP_DATA_CHAR_UUID);
+    formDataChar = await service.getCharacteristic(FORM_DATA_CHAR_UUID);
+    commandChar = await service.getCharacteristic(COMMAND_CHAR_UUID);
+    profileSelChar = await service.getCharacteristic(PROFILE_SEL_UUID);
+    exMgmtChar = await service.getCharacteristic(EXERCISE_MGMT_UUID);
+
+    // Subscribe to notifications
+    await statusChar.startNotifications();
+    statusChar.addEventListener('characteristicvaluechanged', onStatusNotification);
+
+    await repDataChar.startNotifications();
+    repDataChar.addEventListener('characteristicvaluechanged', onRepDataNotification);
+
+    await formDataChar.startNotifications();
+    formDataChar.addEventListener('characteristicvaluechanged', onFormDataNotification);
+
+    await exMgmtChar.startNotifications();
+    exMgmtChar.addEventListener('characteristicvaluechanged', onExMgmtNotification);
+
+    setConnected(true);
+    setStatus('Connected! Reading exercise list...', 'ok');
+
+    // Read exercise list first (needed for dropdown)
+    await readExerciseList();
+
+    // Read initial config
+    await readConfig();
+
+  } catch (error) {
+    console.error('Connection error:', error);
+    setStatus('Connection failed: ' + error.message, 'err');
+    setConnected(false);
+  }
+}
+
+function onDisconnected() {
+  console.log('Device disconnected');
+  setConnected(false);
+  setStatus('Disconnected', '');
+}
+
+async function disconnect() {
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+  }
+  setConnected(false);
+}
+
+// -----------------------------------------------------------------------------
+// Notifications
+// -----------------------------------------------------------------------------
+function onStatusNotification(event) {
+  const data = new DataView(event.target.value.buffer);
+  const status = parseStatus(data);
+  updateLiveStats(status);
+}
+
+function onRepDataNotification(event) {
+  const data = new DataView(event.target.value.buffer);
+  const rep = parseRepData(data);
+
+  if (rep.totalMs > 200) {
+    lastRpm = 60000.0 / rep.totalMs;
+  }
+  if (isFinite(rep.ldlj) && rep.ldlj < -0.01) {
+    lastRepLDLJ = rep.ldlj;
+  }
+
+  const card = document.getElementById('lastRepCard');
+  card.style.display = 'block';
+  document.getElementById('lrRom').textContent = rep.rom.toFixed(1);
+  document.getElementById('lrLdlj').textContent =
+    (isFinite(rep.ldlj) && rep.ldlj !== 0) ? rep.ldlj.toFixed(2) : '-';
+  document.getElementById('lrTempo').textContent =
+    (rep.tempoScore > 0) ? rep.tempoScore + '%' : '-';
+  document.getElementById('lrQuality').textContent = rep.quality.toFixed(0);
+  document.getElementById('lrUp').textContent = rep.upMs + ' ms';
+  document.getElementById('lrDown').textContent = rep.downMs + ' ms';
+  document.getElementById('lrTotal').textContent = rep.totalMs + ' ms';
+  document.getElementById('lrPeakVel').textContent = rep.peakVelDps + ' dps';
+}
+
+const DEFECT_NAMES = [
+  'Sway', 'Twist', 'Bounce Up', 'Bounce Dn', 'Rushed Dn',
+  'Short ROM', 'Jerky', 'Early Peak', 'Late Peak', 'Slow'
+];
+
+function defectList(mask) {
+  if (mask === 0) return 'Good';
+  const names = [];
+  for (let i = 0; i < DEFECT_NAMES.length; i++) {
+    if (mask & (1 << i)) names.push(DEFECT_NAMES[i]);
+  }
+  return names.join(', ');
+}
+
+function parseFormData(data) {
+  return {
+    repIndex:         data.getUint16(0, true),
+    formScore:        data.getUint8(2),
+    defectMask:       data.getUint16(3, true),
+    offAxisPct:       data.getUint8(5) / 200.0,
+    zeroCrossingsUp:  data.getUint8(6),
+    zeroCrossingsDown:data.getUint8(7),
+  };
+}
+
+function onFormDataNotification(event) {
+  const data = new DataView(event.target.value.buffer);
+  const form = parseFormData(data);
+
+  lastFormScore = form.formScore;
+  lastDefectMask = form.defectMask;
+
+  const scoreEl = document.getElementById('lrFormScore');
+  const defectEl = document.getElementById('lrDefects');
+  const offAxisEl = document.getElementById('lrOffAxis');
+  if (scoreEl) {
+    scoreEl.textContent = form.formScore;
+    scoreEl.style.color = form.formScore >= 80 ? '#10b981' :
+                          form.formScore >= 60 ? '#f59e0b' : '#ef4444';
+  }
+  if (defectEl) defectEl.textContent = defectList(form.defectMask);
+  if (offAxisEl) offAxisEl.textContent = (form.offAxisPct * 100).toFixed(1) + '%';
+}
+
+function onExMgmtNotification(event) {
+  const data = new DataView(event.target.value.buffer);
+  if (data.byteLength < 3) return;
+
+  const count = data.getUint8(0);
+  const enableMask = data.getUint16(1, true);
+
+  deviceExercises = [];
+  let offset = 3;
+  for (let i = 0; i < count; i++) {
+    if (offset + 18 > data.byteLength) break;
+    const slot = data.getUint8(offset);
+    const repMode = data.getUint8(offset + 1);
+    let name = '';
+    for (let j = 0; j < 16; j++) {
+      const c = data.getUint8(offset + 2 + j);
+      if (c === 0) break;
+      name += String.fromCharCode(c);
+    }
+    const enabled = (enableMask & (1 << slot)) !== 0;
+    deviceExercises.push({ slot, name, repMode, enabled });
+    offset += 18;
+  }
+
+  console.log('[BLE] Exercise list updated via notification:', deviceExercises);
+  updateExerciseUI();
+  updateExerciseListUI();
+}
+
+const CAL_STATE_NAMES = ['Idle', 'Still', 'Characterizing', 'Collecting P1', 'Collecting P2', 'Done', 'Aborted'];
+
+function parseStatus(data) {
+  return {
+    fsmState: data.getUint8(0),
+    exercise: data.getUint8(1),
+    side: data.getUint8(2),
+    repMode: data.getUint8(3),
+    repCount: data.getUint16(4, true),
+    calibrated: data.getUint8(6),
+    calibState: data.getUint8(7),
+    lastRom: data.getFloat32(8, true),
+    lastQuality: data.getFloat32(12, true),
+    calibRepCount: data.byteLength > 16 ? data.getUint8(16) : 0,
+    calibMinReps: data.byteLength > 17 ? data.getUint8(17) : 6
+  };
+}
+
+function parseRepData(data) {
+  return {
+    repIndex: data.getUint16(0, true),
+    rom: data.getFloat32(2, true),
+    quality: data.getFloat32(6, true),
+    ldlj: data.getFloat32(10, true),
+    upMs: data.getUint16(14, true),
+    downMs: data.getUint16(16, true),
+    totalMs: data.getUint16(18, true),
+    peakVelDps: data.getUint16(20, true),
+    tempoScore: data.byteLength >= 23 ? data.getUint8(22) : 0
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Config Read/Write
+// -----------------------------------------------------------------------------
+async function readConfig() {
+  if (!configChar) return;
+
+  try {
+    setStatus('Reading config...', '');
+    const value = await configChar.readValue();
+    const cfg = parseConfig(value);
+    populateForm(cfg);
+    setStatus('Config loaded', 'ok');
+  } catch (error) {
+    console.error('Read config error:', error);
+    setStatus('Read failed: ' + error.message, 'err');
+  }
+}
+
+async function writeConfig() {
+  if (!configChar) return;
+
+  try {
+    setStatus('Reading current config...', '');
+    const currentValue = await configChar.readValue();
+    const cfg = parseConfig(currentValue);
+
+    updateConfigFromForm(cfg);
+
+    setStatus('Writing config...', '');
+    const buffer = serializeConfig(cfg);
+    await configChar.writeValueWithResponse(new Uint8Array(buffer));
+
+    await sendCommand(CMD_SAVE_CONFIG);
+    await readConfig();
+    setStatus('Config saved!', 'ok');
+  } catch (error) {
+    console.error('Write config error:', error);
+    setStatus('Write failed: ' + error.message, 'err');
+  }
+}
+
+async function sendCommand(cmd) {
+  if (!commandChar) return;
+
+  try {
+    const buffer = new Uint8Array([cmd]);
+    await commandChar.writeValue(buffer);
+  } catch (error) {
+    console.error('Command error:', error);
+  }
+}
+
+async function selectProfile(exercise, side) {
+  if (!profileSelChar) return;
+
+  try {
+    const buffer = new Uint8Array([exercise, side]);
+    await profileSelChar.writeValue(buffer);
+    setTimeout(readConfig, 200);
+  } catch (error) {
+    console.error('Profile select error:', error);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Config Parsing
+// -----------------------------------------------------------------------------
+function parseConfig(dataView) {
+  const d = new DataView(dataView.buffer);
+
+  return {
+    cfgVersion:       d.getUint16(0, true),
+    exercise:         d.getUint8(2),
+    side:             d.getUint8(3),
+    dumbbellWeightKg: d.getFloat32(4, true),
+
+    angleFilter: {
+      angleSmoothMs:  d.getUint16(8, true),
+      velSmoothMs:    d.getUint16(10, true),
+    },
+
+    verticalFilter: {
+      accelSmoothMs:    d.getUint16(12, true),
+      tapThresholdG:    d.getFloat32(16, true),
+      tapMinDurationMs: d.getUint16(20, true),
+    },
+
+    verticalAxis: {
+      gravityCalibDurationMs: d.getUint16(24, true),
+      gravitySmoothMs:        d.getUint16(26, true),
+      gravityMaxStepDeg:      d.getFloat32(28, true),
+      gravityFreezeOmegaDps:  d.getFloat32(32, true),
+    },
+
+    angleSource: {
+      angleMode: d.getUint8(36),
+      refAxisX:  d.getFloat32(40, true),
+      refAxisY:  d.getFloat32(44, true),
+      refAxisZ:  d.getFloat32(48, true),
+      invert:    d.getUint8(52) !== 0,
+    },
+
+    angleRep: {
+      topAngleDeg:      d.getFloat32(56, true),
+      bottomAngleDeg:   d.getFloat32(60, true),
+      turnaroundVelDps: d.getFloat32(64, true),
+      minRepTimeMs:     d.getUint16(68, true),
+      maxRepTimeMs:     d.getUint16(70, true),
+      topHoldMinMs:     d.getUint16(72, true),
+      bottomHoldMinMs:  d.getUint16(74, true),
+    },
+
+    verticalRep: {
+      minROM_Amplitude: d.getFloat32(76, true),
+      minRepTimeMs:     d.getUint16(80, true),
+      maxRepTimeMs:     d.getUint16(82, true),
+      topHoldMinMs:     d.getUint16(84, true),
+      bottomHoldMinMs:  d.getUint16(86, true),
+      startThreshFrac:  d.getFloat32(88, true),
+      keepThreshFrac:   d.getFloat32(92, true),
+    },
+
+    repCalib: {
+      calibInitialIgnoreMs:  d.getUint16(96, true),
+      calibCaptureDurationMs: d.getUint16(98, true),
+      romLowerPct:           d.getFloat32(100, true),
+      romUpperPct:           d.getFloat32(104, true),
+      minRomFraction:        d.getFloat32(108, true),
+    },
+
+    serialCfg: {
+      streamRaw:      d.getUint8(112) !== 0,
+      streamFiltered: d.getUint8(113) !== 0,
+      streamFSM:      d.getUint8(114) !== 0,
+      streamSummary:  d.getUint8(115) !== 0,
+    },
+
+    repMode: d.getUint8(116),
+
+    qualityCfg: {
+      romRatioCap:       d.getFloat32(120, true),
+    },
+
+    calibCfg: {
+      minReps:        d.getUint8(124),
+      allowOverrides: d.getUint8(125) !== 0,
+    },
+
+    calibBase: {
+      valid:       d.getUint8(128) !== 0,
+      baseROM:     d.getFloat32(132, true),
+      baseLDLJ:    d.getFloat32(136, true),
+      baseUpMs:    d.getFloat32(140, true),
+      baseDownMs:  d.getFloat32(144, true),
+      baseTotalMs: d.getFloat32(148, true),
+      repsUsed:    d.getUint8(152),
+      baseOffAxisAccelRatio: d.getFloat32(156, true),
+      baseOffAxisGyroRatio:  d.getFloat32(160, true),
+    },
+  };
+}
+
+function populateForm(cfg) {
+  document.getElementById('exercise').value = cfg.exercise;
+  document.getElementById('side').value = cfg.side;
+  document.getElementById('repMode').value = cfg.repMode;
+  document.getElementById('weightKg').value = cfg.dumbbellWeightKg || 0;
+
+  document.getElementById('angleSmoothMs').value = cfg.angleFilter?.angleSmoothMs || 0;
+  document.getElementById('velSmoothMs').value = cfg.angleFilter?.velSmoothMs || 0;
+
+  document.getElementById('accelSmoothMs').value = cfg.verticalFilter?.accelSmoothMs || 0;
+  document.getElementById('tapThresholdG').value = cfg.verticalFilter?.tapThresholdG || 0;
+  document.getElementById('tapMinDurationMs').value = cfg.verticalFilter?.tapMinDurationMs || 0;
+
+  document.getElementById('gravitySmoothMs').value = cfg.verticalAxis?.gravitySmoothMs || 0;
+  document.getElementById('gravityFreezeOmegaDps').value = cfg.verticalAxis?.gravityFreezeOmegaDps || 0;
+
+  document.getElementById('angleMode').value = cfg.angleSource?.angleMode || 0;
+  document.getElementById('refAxisX').value = cfg.angleSource?.refAxisX || 0;
+  document.getElementById('refAxisY').value = cfg.angleSource?.refAxisY || 0;
+  document.getElementById('refAxisZ').value = cfg.angleSource?.refAxisZ || 0;
+  document.getElementById('angleInvert').checked = cfg.angleSource?.invert || false;
+
+  document.getElementById('topAngleDeg').value = cfg.angleRep?.topAngleDeg || 0;
+  document.getElementById('bottomAngleDeg').value = cfg.angleRep?.bottomAngleDeg || 0;
+  document.getElementById('turnaroundVelDps').value = cfg.angleRep?.turnaroundVelDps || 0;
+  document.getElementById('angleMinRepTimeMs').value = cfg.angleRep?.minRepTimeMs || 0;
+  document.getElementById('angleMaxRepTimeMs').value = cfg.angleRep?.maxRepTimeMs || 0;
+  document.getElementById('topHoldMinMs').value = cfg.angleRep?.topHoldMinMs || 0;
+  document.getElementById('bottomHoldMinMs').value = cfg.angleRep?.bottomHoldMinMs || 0;
+
+  document.getElementById('minROM_Amplitude').value = cfg.verticalRep?.minROM_Amplitude || 0;
+  document.getElementById('vertMinRepTimeMs').value = cfg.verticalRep?.minRepTimeMs || 0;
+  document.getElementById('vertMaxRepTimeMs').value = cfg.verticalRep?.maxRepTimeMs || 0;
+  document.getElementById('vertTopHoldMinMs').value = cfg.verticalRep?.topHoldMinMs || 0;
+  document.getElementById('vertBottomHoldMinMs').value = cfg.verticalRep?.bottomHoldMinMs || 0;
+  document.getElementById('velStartThreshFrac').value = cfg.verticalRep?.startThreshFrac || 0;
+  document.getElementById('velKeepThreshFrac').value = cfg.verticalRep?.keepThreshFrac || 0;
+
+  if (cfg.calibBase?.valid && cfg.calibBase?.baseROM > 0.001) {
+    lastBaseROM = cfg.calibBase.baseROM;
+  }
+  if (cfg.calibBase?.valid && cfg.calibBase?.baseLDLJ < -0.01) {
+    lastBaseLDLJ = cfg.calibBase.baseLDLJ;
+  }
+
+  document.getElementById('calibValid').value = cfg.calibBase?.valid ? 1 : 0;
+  document.getElementById('calibBaseROM').value = cfg.calibBase?.baseROM || 0;
+  document.getElementById('calibBaseUpMs').value = cfg.calibBase?.baseUpMs || 0;
+  document.getElementById('calibBaseDownMs').value = cfg.calibBase?.baseDownMs || 0;
+  document.getElementById('calibBaseTotalMs').value = cfg.calibBase?.baseTotalMs || 0;
+  document.getElementById('calibRepsUsed').value = cfg.calibBase?.repsUsed || 0;
+  document.getElementById('calibBaseLDLJ').value = cfg.calibBase?.baseLDLJ || 0;
+
+  document.getElementById('minCalibReps').value = cfg.calibCfg?.minReps || 6;
+  document.getElementById('calibInitialIgnoreMs').value = cfg.repCalib?.calibInitialIgnoreMs || 0;
+  document.getElementById('calibCaptureDurationMs').value = cfg.repCalib?.calibCaptureDurationMs || 0;
+  document.getElementById('romLowerPct').value = cfg.repCalib?.romLowerPct || 0;
+  document.getElementById('romUpperPct').value = cfg.repCalib?.romUpperPct || 0;
+  document.getElementById('minRomFraction').value = cfg.repCalib?.minRomFraction || 0.5;
+  document.getElementById('romRatioCap').value = cfg.qualityCfg?.romRatioCap || 1.5;
+
+  document.getElementById('streamRaw').checked = cfg.serialCfg?.streamRaw || false;
+  document.getElementById('streamFiltered').checked = cfg.serialCfg?.streamFiltered || false;
+  document.getElementById('streamFSM').checked = cfg.serialCfg?.streamFSM || false;
+  document.getElementById('streamSummary').checked = cfg.serialCfg?.streamSummary || false;
+}
+
+function updateConfigFromForm(cfg) {
+  cfg.exercise = parseInt(document.getElementById('exercise').value);
+  cfg.side = parseInt(document.getElementById('side').value);
+  cfg.repMode = parseInt(document.getElementById('repMode').value);
+  cfg.dumbbellWeightKg = parseFloat(document.getElementById('weightKg').value) || 0;
+
+  cfg.angleFilter = cfg.angleFilter || {};
+  cfg.angleFilter.angleSmoothMs = parseInt(document.getElementById('angleSmoothMs').value) || 0;
+  cfg.angleFilter.velSmoothMs = parseInt(document.getElementById('velSmoothMs').value) || 0;
+
+  cfg.verticalFilter = cfg.verticalFilter || {};
+  cfg.verticalFilter.accelSmoothMs = parseInt(document.getElementById('accelSmoothMs').value) || 0;
+  cfg.verticalFilter.tapThresholdG = parseFloat(document.getElementById('tapThresholdG').value) || 0;
+  cfg.verticalFilter.tapMinDurationMs = parseInt(document.getElementById('tapMinDurationMs').value) || 0;
+
+  cfg.verticalAxis = cfg.verticalAxis || {};
+  cfg.verticalAxis.gravitySmoothMs = parseInt(document.getElementById('gravitySmoothMs').value) || 0;
+  cfg.verticalAxis.gravityFreezeOmegaDps = parseFloat(document.getElementById('gravityFreezeOmegaDps').value) || 0;
+
+  cfg.angleSource = cfg.angleSource || {};
+  cfg.angleSource.angleMode = parseInt(document.getElementById('angleMode').value) || 0;
+  cfg.angleSource.refAxisX = parseFloat(document.getElementById('refAxisX').value) || 0;
+  cfg.angleSource.refAxisY = parseFloat(document.getElementById('refAxisY').value) || 0;
+  cfg.angleSource.refAxisZ = parseFloat(document.getElementById('refAxisZ').value) || 0;
+  cfg.angleSource.invert = document.getElementById('angleInvert').checked;
+
+  cfg.angleRep = cfg.angleRep || {};
+  cfg.angleRep.topAngleDeg = parseFloat(document.getElementById('topAngleDeg').value) || 0;
+  cfg.angleRep.bottomAngleDeg = parseFloat(document.getElementById('bottomAngleDeg').value) || 0;
+  cfg.angleRep.turnaroundVelDps = parseFloat(document.getElementById('turnaroundVelDps').value) || 0;
+  cfg.angleRep.minRepTimeMs = parseInt(document.getElementById('angleMinRepTimeMs').value) || 0;
+  cfg.angleRep.maxRepTimeMs = parseInt(document.getElementById('angleMaxRepTimeMs').value) || 0;
+  cfg.angleRep.topHoldMinMs = parseInt(document.getElementById('topHoldMinMs').value) || 0;
+  cfg.angleRep.bottomHoldMinMs = parseInt(document.getElementById('bottomHoldMinMs').value) || 0;
+
+  cfg.verticalRep = cfg.verticalRep || {};
+  cfg.verticalRep.minROM_Amplitude = parseFloat(document.getElementById('minROM_Amplitude').value) || 0;
+  cfg.verticalRep.minRepTimeMs = parseInt(document.getElementById('vertMinRepTimeMs').value) || 0;
+  cfg.verticalRep.maxRepTimeMs = parseInt(document.getElementById('vertMaxRepTimeMs').value) || 0;
+  cfg.verticalRep.topHoldMinMs = parseInt(document.getElementById('vertTopHoldMinMs').value) || 0;
+  cfg.verticalRep.bottomHoldMinMs = parseInt(document.getElementById('vertBottomHoldMinMs').value) || 0;
+  cfg.verticalRep.startThreshFrac = parseFloat(document.getElementById('velStartThreshFrac').value) || 0;
+  cfg.verticalRep.keepThreshFrac = parseFloat(document.getElementById('velKeepThreshFrac').value) || 0;
+
+  cfg.calibBase = cfg.calibBase || {};
+  cfg.calibBase.valid = parseInt(document.getElementById('calibValid').value) === 1;
+  cfg.calibBase.baseROM = parseFloat(document.getElementById('calibBaseROM').value) || 0;
+  cfg.calibBase.baseUpMs = parseFloat(document.getElementById('calibBaseUpMs').value) || 0;
+  cfg.calibBase.baseDownMs = parseFloat(document.getElementById('calibBaseDownMs').value) || 0;
+  cfg.calibBase.baseTotalMs = parseFloat(document.getElementById('calibBaseTotalMs').value) || 0;
+  cfg.calibBase.repsUsed = parseInt(document.getElementById('calibRepsUsed').value) || 0;
+  cfg.calibBase.baseLDLJ = parseFloat(document.getElementById('calibBaseLDLJ').value) || 0;
+
+  cfg.calibCfg = cfg.calibCfg || {};
+  cfg.calibCfg.minReps = parseInt(document.getElementById('minCalibReps').value) || 6;
+  cfg.qualityCfg = cfg.qualityCfg || {};
+  cfg.qualityCfg.romRatioCap = parseFloat(document.getElementById('romRatioCap').value) || 1.5;
+  cfg.repCalib = cfg.repCalib || {};
+  cfg.repCalib.calibInitialIgnoreMs = parseInt(document.getElementById('calibInitialIgnoreMs').value) || 0;
+  cfg.repCalib.calibCaptureDurationMs = parseInt(document.getElementById('calibCaptureDurationMs').value) || 0;
+  cfg.repCalib.romLowerPct = parseFloat(document.getElementById('romLowerPct').value) || 0;
+  cfg.repCalib.romUpperPct = parseFloat(document.getElementById('romUpperPct').value) || 0;
+  cfg.repCalib.minRomFraction = parseFloat(document.getElementById('minRomFraction').value) || 0.5;
+
+  cfg.serialCfg = cfg.serialCfg || {};
+  cfg.serialCfg.streamRaw = document.getElementById('streamRaw').checked;
+  cfg.serialCfg.streamFiltered = document.getElementById('streamFiltered').checked;
+  cfg.serialCfg.streamFSM = document.getElementById('streamFSM').checked;
+  cfg.serialCfg.streamSummary = document.getElementById('streamSummary').checked;
+}
+
+function serializeConfig(cfg) {
+  const buf = new ArrayBuffer(CONFIG_STRUCT_SIZE);
+  const d = new DataView(buf);
+
+  d.setUint16(0, cfg.cfgVersion || 0, true);
+  d.setUint8(2, cfg.exercise || 0);
+  d.setUint8(3, cfg.side || 0);
+  d.setFloat32(4, cfg.dumbbellWeightKg || 0, true);
+
+  d.setUint16(8, cfg.angleFilter.angleSmoothMs || 0, true);
+  d.setUint16(10, cfg.angleFilter.velSmoothMs || 0, true);
+
+  d.setUint16(12, cfg.verticalFilter.accelSmoothMs || 0, true);
+  d.setFloat32(16, cfg.verticalFilter.tapThresholdG || 0, true);
+  d.setUint16(20, cfg.verticalFilter.tapMinDurationMs || 0, true);
+
+  d.setUint16(24, cfg.verticalAxis.gravityCalibDurationMs || 0, true);
+  d.setUint16(26, cfg.verticalAxis.gravitySmoothMs || 0, true);
+  d.setFloat32(28, cfg.verticalAxis.gravityMaxStepDeg || 0, true);
+  d.setFloat32(32, cfg.verticalAxis.gravityFreezeOmegaDps || 0, true);
+
+  d.setUint8(36, cfg.angleSource.angleMode || 0);
+  d.setFloat32(40, cfg.angleSource.refAxisX || 0, true);
+  d.setFloat32(44, cfg.angleSource.refAxisY || 0, true);
+  d.setFloat32(48, cfg.angleSource.refAxisZ || 0, true);
+  d.setUint8(52, cfg.angleSource.invert ? 1 : 0);
+
+  d.setFloat32(56, cfg.angleRep.topAngleDeg || 0, true);
+  d.setFloat32(60, cfg.angleRep.bottomAngleDeg || 0, true);
+  d.setFloat32(64, cfg.angleRep.turnaroundVelDps || 0, true);
+  d.setUint16(68, cfg.angleRep.minRepTimeMs || 0, true);
+  d.setUint16(70, cfg.angleRep.maxRepTimeMs || 0, true);
+  d.setUint16(72, cfg.angleRep.topHoldMinMs || 0, true);
+  d.setUint16(74, cfg.angleRep.bottomHoldMinMs || 0, true);
+
+  d.setFloat32(76, cfg.verticalRep.minROM_Amplitude || 0, true);
+  d.setUint16(80, cfg.verticalRep.minRepTimeMs || 0, true);
+  d.setUint16(82, cfg.verticalRep.maxRepTimeMs || 0, true);
+  d.setUint16(84, cfg.verticalRep.topHoldMinMs || 0, true);
+  d.setUint16(86, cfg.verticalRep.bottomHoldMinMs || 0, true);
+  d.setFloat32(88, cfg.verticalRep.startThreshFrac || 0, true);
+  d.setFloat32(92, cfg.verticalRep.keepThreshFrac || 0, true);
+
+  d.setUint16(96, cfg.repCalib.calibInitialIgnoreMs || 0, true);
+  d.setUint16(98, cfg.repCalib.calibCaptureDurationMs || 0, true);
+  d.setFloat32(100, cfg.repCalib.romLowerPct || 0, true);
+  d.setFloat32(104, cfg.repCalib.romUpperPct || 0, true);
+  d.setFloat32(108, cfg.repCalib.minRomFraction || 0, true);
+
+  d.setUint8(112, cfg.serialCfg.streamRaw ? 1 : 0);
+  d.setUint8(113, cfg.serialCfg.streamFiltered ? 1 : 0);
+  d.setUint8(114, cfg.serialCfg.streamFSM ? 1 : 0);
+  d.setUint8(115, cfg.serialCfg.streamSummary ? 1 : 0);
+
+  d.setUint8(116, cfg.repMode || 0);
+
+  d.setFloat32(120, cfg.qualityCfg.romRatioCap || 0, true);
+
+  d.setUint8(124, cfg.calibCfg.minReps || 0);
+  d.setUint8(125, cfg.calibCfg.allowOverrides ? 1 : 0);
+
+  d.setUint8(128, cfg.calibBase.valid ? 1 : 0);
+  d.setFloat32(132, cfg.calibBase.baseROM || 0, true);
+  d.setFloat32(136, cfg.calibBase.baseLDLJ || 0, true);
+  d.setFloat32(140, cfg.calibBase.baseUpMs || 0, true);
+  d.setFloat32(144, cfg.calibBase.baseDownMs || 0, true);
+  d.setFloat32(148, cfg.calibBase.baseTotalMs || 0, true);
+  d.setUint8(152, cfg.calibBase.repsUsed || 0);
+  d.setFloat32(156, cfg.calibBase.baseOffAxisAccelRatio || 0, true);
+  d.setFloat32(160, cfg.calibBase.baseOffAxisGyroRatio || 0, true);
+
+  return buf;
+}
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+// -----------------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+  if (!navigator.bluetooth) {
+    document.getElementById('connectBanner').innerHTML = `
+      <h2>Web Bluetooth Not Supported</h2>
+      <p style="color:#f97316;">Your browser does not support Web Bluetooth.</p>
+      <p>Please use Chrome or Edge on desktop/Android.</p>
+    `;
+    return;
+  }
+
+  document.getElementById('btnConnect').addEventListener('click', connect);
+  document.getElementById('btnDisconnect').addEventListener('click', disconnect);
+
+  document.getElementById('btnCalibrate').addEventListener('click', () => {
+    const btn = document.getElementById('btnCalibrate');
+    if (btn.dataset.calibActive === '1') {
+      sendCommand(CMD_CALIBRATE_ABORT);
+    } else {
+      sendCommand(CMD_CALIBRATE_START);
+      document.getElementById('calibStatus').textContent = 'Starting calibration...';
+      document.getElementById('calibStatus').style.color = '#f59e0b';
+    }
+  });
+  document.getElementById('btnResetSet').addEventListener('click', () => sendCommand(CMD_RESET_SET));
+  document.getElementById('btnNextEx').addEventListener('click', () => sendCommand(CMD_NEXT_EXERCISE));
+  document.getElementById('btnToggleSide').addEventListener('click', () => sendCommand(CMD_TOGGLE_SIDE));
+
+  document.getElementById('btnReadConfig').addEventListener('click', readConfig);
+  document.getElementById('btnWriteConfig').addEventListener('click', writeConfig);
+  document.getElementById('btnResetProfile').addEventListener('click', () => {
+    if (confirm('Reset this profile to defaults?')) {
+      sendCommand(CMD_RESET_PROFILE);
+      setTimeout(readConfig, 300);
+    }
+  });
+
+  document.getElementById('btnReadConfigExpert').addEventListener('click', readConfig);
+  document.getElementById('btnWriteConfigExpert').addEventListener('click', writeConfig);
+
+  // Profile selectors
+  document.getElementById('exercise').addEventListener('change', () => {
+    const ex = parseInt(document.getElementById('exercise').value);
+    const side = parseInt(document.getElementById('side').value);
+    selectProfile(ex, side);
+  });
+  document.getElementById('side').addEventListener('change', () => {
+    const ex = parseInt(document.getElementById('exercise').value);
+    const side = parseInt(document.getElementById('side').value);
+    selectProfile(ex, side);
+  });
+
+  // Add exercise preset auto-fill
+  document.getElementById('addExPreset').addEventListener('change', (e) => {
+    if (e.target.value) {
+      document.getElementById('addExName').value = e.target.value;
+    }
+  });
+
+  // Add exercise button
+  document.getElementById('btnAddExercise').addEventListener('click', () => {
+    const name = document.getElementById('addExName').value.trim();
+    if (!name) {
+      setStatus('Please enter an exercise name', 'err');
+      return;
+    }
+    const repMode = parseInt(document.getElementById('addExRepMode').value);
+    const axisX = parseFloat(document.getElementById('addExAxisX').value) || 0;
+    const axisY = parseFloat(document.getElementById('addExAxisY').value) || 0;
+    const axisZ = parseFloat(document.getElementById('addExAxisZ').value) || 0;
+    addExercise(name, repMode, axisX, axisY, axisZ);
+    document.getElementById('addExName').value = '';
+    document.getElementById('addExPreset').value = '';
+  });
+
+  // Tabs
+  document.querySelectorAll('.tabbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+      document.getElementById(btn.dataset.tab).classList.add('active');
+      btn.classList.add('active');
+      if (btn.dataset.tab === 'tabExercises' && exMgmtChar) {
+        readExerciseList();
+      }
+      if (btn.dataset.tab !== 'tabWorkout' && btn.dataset.tab !== 'tabExercises' && configChar) {
+        readConfig();
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
